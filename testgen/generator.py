@@ -96,10 +96,15 @@ def write_test_file(code: str, dest_dir: Path, name: str) -> Path:
 def generate_tests(
     client: LLMClient, source_path: Path, module_import: str, dest_dir: Path
 ) -> GenerationResult:
-    """Read the source file, call the LLM once, save the extracted tests.
+    """...""" #keep the existing docstring
+    source_code = source_path.read_text() # 1. read the module under test
+    prompt = build_prompt(source_code, module_import) # 2. build the prompt
+    llm_result = client.generate(prompt, system=SYSTEM_PROMPT) # 3. ask the LLM
+    test_code = extract_code(llm_result.text) # 4. keep only the code
+    test_path = write_test_file(test_code, dest_dir, source_path.stem) # 5. save it
 
-    The test file name is the source file's stem (indicators.py -> test_indicators.py).
-    Pass SYSTEM_PROMPT as the system message.
-    """
+    return GenerationResult(test_path, test_code, llm_result)
+
+
     # TODO(Yusuf): combine the three functions above with client.generate(...)
     raise NotImplementedError
