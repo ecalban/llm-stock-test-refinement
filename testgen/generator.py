@@ -32,13 +32,24 @@ def build_prompt(source_code: str, module_import: str) -> str:
     """Build the user prompt for the first (feedback-free) generation round.
 
     It must contain:
-    - the full source code inside a ```python block,
+    - the full source code inside a python code block,
     - the import path the tests must use (e.g. ``testgen.sample_target.indicators``),
     - the instructions: pytest style, check exact return values and edge cases,
       do not modify the code under test.
     """
-    # TODO(Yusuf): return an f-string that satisfies tests/test_generator.py
-    raise NotImplementedError
+    fence = "`" * 3  # three backticks; kept in a variable so the string stays readable
+
+    instructions = (
+        "Write pytest unit tests for the Python module below.\n"
+        f"Import the functions from `{module_import}`.\n"
+        "Check exact return values and edge cases "
+        "(empty input, invalid arguments, boundary values).\n"
+        "Do not modify the code under test.\n"
+    )
+
+    code_block = f"{fence}python\n{source_code}{fence}\n"
+
+    return instructions + "\n" + code_block
 
 
 def extract_code(reply: str) -> str:
