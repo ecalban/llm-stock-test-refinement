@@ -226,3 +226,6 @@ data/
 # mutmut
 .mutmut-cache
 html/
+
+.idea/
+tests/generated/
