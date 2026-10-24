@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import re
 
 from testgen.llm_client import LLMClient, LLMResult
 
@@ -53,16 +54,24 @@ def build_prompt(source_code: str, module_import: str) -> str:
 
 
 def extract_code(reply: str) -> str:
-    """Return the test code from an LLM reply.
+    """..."""  # keep the existing docstring
+    fence = "`" * 3
 
-    - If the reply has a ```python ... ``` block, return the inside of the first one.
-    - Else if it has a plain ``` ... ``` block, return the inside of the first one.
-    - Else return the whole reply.
-    Always strip leading/trailing whitespace and end with exactly one newline.
-    Hint: the `re` module with re.DOTALL.
-    """
-    # TODO(Yusuf)
-    raise NotImplementedError
+    # 1) A ```python block: take the inside of the first one
+    match = re.search(rf"{fence}python\n(.*?){fence}", reply, re.DOTALL)
+
+    # 2) Otherwise a plain ``` block
+    if match is None:
+        match = re.search(rf"{fence}\n(.*?){fence}", reply, re.DOTALL)
+
+    # 3) Otherwise assume the whole reply is code
+    if match is None:
+        code = reply
+    else:
+        code = match.group(1)
+
+    # 4) Normalise whitespace: no leading/trailing blank lines, exactly one final newline
+    return code.strip() + "\n"
 
 
 def write_test_file(code: str, dest_dir: Path, name: str) -> Path:
