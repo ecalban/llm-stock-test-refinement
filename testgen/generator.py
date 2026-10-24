@@ -59,8 +59,18 @@ def write_test_file(code: str, dest_dir: Path, name: str) -> Path:
 
     If `name` already starts with "test_", do not add the prefix twice.
     """
-    # TODO(Yusuf)
-    raise NotImplementedError
+    # Create the folder (and any missing parents); do nothing if it already exists
+    dest_dir.mkdir(parents=True, exist_ok=True)
+
+    # pytest only collects files named test_*.py, so make sure the prefix is there once
+    if name.startswith("test_"):
+        filename = name + ".py"
+    else:
+        filename = "test_" + name + ".py"
+
+    path = dest_dir / filename  # Path's "/" joins folder and file name
+    path.write_text(code)
+    return path
 
 
 def generate_tests(
