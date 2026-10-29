@@ -1,13 +1,3 @@
-"""Step 1 of the test layer: ask an LLM to write pytest tests for a module.
-
-Flow:
-    source code --build_prompt--> prompt --client.generate--> reply
-    reply --extract_code--> test code --write_test_file--> tests/generated/test_x.py
-
-Each function below has a TODO. tests/test_generator.py describes exactly what
-each one must do; run `pytest tests/test_generator.py` until it is green.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -105,6 +95,4 @@ def generate_tests(
 
     return GenerationResult(test_path, test_code, llm_result)
 
-
-    # TODO(Yusuf): combine the three functions above with client.generate(...)
     raise NotImplementedError
