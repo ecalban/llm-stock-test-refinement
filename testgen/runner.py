@@ -103,8 +103,17 @@ def remove_failing_tests(code: str, failing: list[str]) -> str:
     (an ast.FunctionDef whose .name is in failing); return ast.unparse(tree) + "\\n".
     Note: ast.unparse drops comments; that is fine for generated tests.
     """
-    # TODO(Yusuf)
-    raise NotImplementedError
+    tree = ast.parse(code)
+
+    kept = []
+    for node in tree.body:
+        # Drop the node only if it is a function AND its name is `failing`
+        if isinstance(node, ast.FunctionDef) and node.name in failing:
+            continue
+        kept.append(node)
+
+    tree.body = kept
+    return ast.unparse(tree) + "\n"
 
 
 def run_pytest(test_path: Path, timeout_seconds: float = 120.0) -> RunResult:
