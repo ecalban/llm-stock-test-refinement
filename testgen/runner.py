@@ -73,8 +73,26 @@ def parse_junit(xml_text: str) -> list[TestOutcome]:
     Hint: ET.fromstring(xml_text).iter("testcase") visits every testcase;
     case.find("failure") returns the child element or None; element.get("message", "").
     """
-    # TODO(Yusuf)
-    raise NotImplementedError
+    outcomes = []
+    for case in ET.fromstring(xml_text).iter("testcase"):
+        name = case.get("name", "")
+
+        #Skipped tests are neither valid nor invalid: leave them out
+        if case.find("skipped") is not None:
+            continue
+
+        #A failed test has a <failure> child, a broken one an <error> child
+        problem = case.find("failure")
+        if problem is None:
+            problem = case.find("error")
+
+        if problem is None:
+            outcomes.append(TestOutcome(name=name,passed=True,message=""))
+        else:
+            outcomes.append(TestOutcome(name=name, passed=False, message=problem.get("message", "")))
+
+
+    return outcomes
 
 
 def remove_failing_tests(code: str, failing: list[str]) -> str:
