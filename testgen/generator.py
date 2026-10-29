@@ -1,3 +1,5 @@
+"""tests/test_generator.py describes the expected behaviour of each function."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

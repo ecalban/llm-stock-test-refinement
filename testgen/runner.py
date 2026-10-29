@@ -55,8 +55,10 @@ class RunResult:
 
         Return 0.0 when there are no outcomes (nothing collected).
         """
-        # TODO(Yusuf): passed count / total count, guarding against division by zero
-        raise NotImplementedError
+        if not self.outcomes:
+            return 0.0
+        else:
+            return len(self.passed) / len(self.outcomes)
 
 
 def parse_junit(xml_text: str) -> list[TestOutcome]:
