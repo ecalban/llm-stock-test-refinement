@@ -42,6 +42,16 @@ python -m scripts.init_db
 uvicorn app.main:app --reload
 ```
 
+### LLM providers
+
+Set `LLM_API_KEY` (and optionally `LLM_API_MODEL`) in `.env` for the closed model,
+and run Ollama locally for open models (`ollama pull llama3.1:8b`). Quick check:
+
+```bash
+python -m scripts.llm_smoke openai
+python -m scripts.llm_smoke ollama
+```
+
 ### Tests
 
 ```bash
