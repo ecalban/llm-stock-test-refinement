@@ -133,5 +133,32 @@ def run_pytest(test_path: Path, timeout_seconds: float = 120.0) -> RunResult:
     5. If the process times out (subprocess.TimeoutExpired), return
        RunResult(collection_error="timeout").
     """
-    # TODO(Yusuf)
+    with tempfile.TemporaryDirectory() as tmp:
+        report = Path(tmp) / "report.xml"
+        command = [
+            sys.executable, "-m", "pytest", str(test_path), "-q",
+            "-p", "no:cacheprovider", f"--junitxml={report}",
+        ]
+        try:
+            proc = subprocess.run(
+                command, capture_output=True, text=True, timeout=timeout_seconds
+            )
+        except subprocess.TimeoutExpired:
+            return RunResult(collection_error="timeout")
+
+        # Everything pytest printed; useful when the file could not be collected
+        output = proc.stdout + proc.stderr
+
+        # No report, or pytest itself failed (2/3/4): the file could not be collected
+        if not report.exists() or proc.returncode in (2, 3, 4):
+            return RunResult(collection_error=output[-2000:])
+
+        outcomes = parse_junit(report.read_text())
+
+        # Some import errors still write a report, but with no testcases in it
+        if not outcomes and "error" in output.lower():
+            return RunResult(collection_error=output[-2000:])
+
+        return RunResult(outcomes=outcomes)
+
     raise NotImplementedError
