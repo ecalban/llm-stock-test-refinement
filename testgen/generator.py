@@ -38,6 +38,9 @@ def build_prompt(source_code: str, module_import: str) -> str:
         "Check exact return values and edge cases "
         "(empty input, invalid arguments, boundary values).\n"
         "Do not modify the code under test.\n"
+        "Every test function should control only one behaviour,it must contain maximum 1-2 asserts.\n"
+        "Test functions should tell what it is testing,for example test_sma_returns_none_before_window.\n"
+        "If you are not sure about the numbers,don't predict use small inputs that you can calculate with hand.\n"
     )
 
     code_block = f"{fence}python\n{source_code}{fence}\n"
