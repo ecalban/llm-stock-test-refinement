@@ -22,6 +22,7 @@ import sys
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
+from unittest import result
 
 
 @dataclass(frozen=True)
@@ -45,13 +46,19 @@ class MutationReport:
 
     @property
     def killed(self) -> list[MutantInfo]:
-        # TODO(Yusuf): the mutants whose status is "killed"
-        raise NotImplementedError
+        result = []
+        for mutant in self.mutants:
+            if mutant.status == "killed":
+                result.append(mutant)
+        return result
 
     @property
     def survived(self) -> list[MutantInfo]:
-        # TODO(Yusuf): the mutants whose status is "survived"
-        raise NotImplementedError
+        result = []
+        for mutant in self.mutants:
+            if mutant.status == "survived":
+                result.append(mutant)
+        return result
 
     @property
     def score(self) -> float:
@@ -60,8 +67,11 @@ class MutationReport:
         Return 0.0 when there are no mutants.
         (Equivalent mutants are handled later, in the analysis, not here.)
         """
-        # TODO(Yusuf)
-        raise NotImplementedError
+        if not self.mutants:
+            return 0.0
+
+        score = (len(self.mutants) - len(self.survived)) / len(self.mutants)
+        return score
 
 
 def parse_mutmut_junit(xml_text: str) -> list[MutantInfo]:
