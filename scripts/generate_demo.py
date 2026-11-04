@@ -8,8 +8,6 @@ Usage:
 import sys
 from pathlib import Path
 
-from _pytest import outcomes
-
 from testgen.generator import generate_tests
 from testgen.llm_client import create_client
 from testgen.runner import remove_failing_tests, run_pytest
