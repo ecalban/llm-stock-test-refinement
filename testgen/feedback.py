@@ -49,25 +49,43 @@ def build_feedback_prompt(
     fmt: str,
     max_mutants: int = 10,
 ) -> str:
-    """Build the prompt for a feedback round.
+    #Unknown format -> error (FORMATS = ("score", "line", "full"))
+    if fmt not in FORMATS:
+        raise ValueError(fmt)
 
-    It must contain:
-    1. the source code in a ```python block (as in build_prompt),
-    2. the current tests in a second ```python block,
-    3. the score line, for EVERY format:
-           f"Current mutation score: {report.score:.2f} "
-           f"({len(report.survived)} of {len(report.mutants)} mutants survived)."
-    4. for "line" and "full" only: the first `max_mutants` survivors, one
-       describe_survivor(...) per survivor, each on its own line(s),
-    5. the instructions: write ADDITIONAL pytest tests that would fail on these
-       mutants, do not repeat the existing tests, import from `module_import`,
-       one behaviour per test.
+    fence = "`" * 3
+    parts = []
 
-    An unknown fmt (not in FORMATS) raises ValueError.
-    Tip: build a list of strings (`parts`) and return "\\n".join(parts).
-    """
-    # TODO(Yusuf)
-    raise NotImplementedError
+    # 1. the source code in a python block
+    parts.append("Below is a Python module and its current pytest tests.")
+    parts.append(f"{fence}python\n{source_code}{fence}")
+
+    # 2. the current tests in a second python block
+    parts.append("Current tests:")
+    parts.append(f"{fence}python\n{current_tests}{fence}")
+
+    # 3. the score line (every format)
+    parts.append(
+        f"Current mutation score: {report.score:.2f} "
+        f"({len(report.survived)} of {len(report.mutants)} mutants survived)."
+    )
+
+    # 4. the survivors, only for "line" and "full"
+    if fmt != "score":
+        parts.append("These changes to the code were NOT detected by the tests:")
+        for mutant in report.survived[:max_mutants]:
+            parts.append(describe_survivor(mutant, fmt))
+
+    # 5. the instructions
+    parts.append(
+        "Write additional pytest tests that would fail on these changes.\n"
+        f"Import the functions from `{module_import}`.\n"
+        "Do not repeat the existing tests.\n"
+        "Every test function checks only one behaviour (1-2 asserts)."
+    )
+
+    return "\n".join(parts)
+
 
 
 def merge_tests(existing: str, new: str) -> str:
