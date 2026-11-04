@@ -124,3 +124,9 @@ def test_merge_renames_clashing_test_names():
     assert "def test_far_2():" in merged  # new test_far renamed
     assert "def test_far_2_2():" in merged  # new test_far_2 clashes with the renamed one
     assert "is_adult(30)" in merged and "is_adult(99)" in merged and "is_adult(50)" in merged
+
+def test_merge_puts_every_new_import_before_the_tests():
+    existing = EXISTING + "\ndef test_near():\n    assert is_adult(19)\n"
+    new = "import math\nimport os\n\ndef test_x():\n    assert True\n"
+    merged = merge_tests(existing, new)
+    assert merged.index("import os") < merged.index("def test_far")
