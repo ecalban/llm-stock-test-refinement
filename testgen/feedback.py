@@ -34,8 +34,11 @@ def describe_survivor(mutant: MutantInfo, fmt: str) -> str:
 
     Example for "line":  Line 23: `alpha = 2 / (window + 1)`
     """
-    # TODO(Yusuf)
-    raise NotImplementedError
+    if fmt == "line":
+        return f"Line {mutant.line}: `{mutant.source_line.strip()}`"
+    if fmt == "full":
+        return mutant.diff.strip()
+    raise ValueError(fmt)
 
 
 def build_feedback_prompt(
