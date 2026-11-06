@@ -13,7 +13,6 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://stock:stock@localhost:5432/stock"
     market_data_dir: Path = Path("data")
     prediction_runs_dir: Path = Path("data/runs")
-    experiment_runs_dir: Path = Path("data/experiments")
 
     # LLM providers (used by the test layer)
     # Closed model: any OpenAI-compatible chat completions API.
