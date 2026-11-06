@@ -230,3 +230,6 @@ html/
 .idea/
 tests/generated/
 
+# Local frontend dependencies and TypeScript build cache
+node_modules/
+*.tsbuildinfo

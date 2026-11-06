@@ -2,8 +2,9 @@
 
 from fastapi import FastAPI
 
-from app.api import health
+from app.api import health, prediction
 from app.config import get_settings
 
 app = FastAPI(title=get_settings().app_name)
 app.include_router(health.router)
+app.include_router(prediction.router)
