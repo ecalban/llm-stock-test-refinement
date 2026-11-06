@@ -16,6 +16,8 @@ services:
 
   api:
     build: .
+    volumes:
+      - ./data:/app/data
     env_file:
       - path: .env
         required: false
