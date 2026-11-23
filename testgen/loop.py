@@ -22,6 +22,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from sqlalchemy.util import counter
+
 from testgen.feedback import FORMATS, build_feedback_prompt, merge_tests
 from testgen.generator import SYSTEM_PROMPT, extract_code, generate_tests
 from testgen.llm_client import LLMClient, LLMResult
@@ -57,14 +59,16 @@ class LoopResult:
 
 
 def count_tests(code: str) -> int:
-    """Number of top-level functions whose name starts with "test".
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return 0
 
-    Return 0 if `code` is not valid Python (the LLM sometimes returns broken code).
-    Hint: ast.parse inside try/except SyntaxError; then the same loop over tree.body
-    you used in remove_failing_tests.
-    """
-    # TODO(Yusuf)
-    raise NotImplementedError
+    counter = 0
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef) and node.name.startswith("test"):
+            counter += 1
+    return counter
 
 
 def should_stop(scores: list[float], max_rounds: int) -> bool:
