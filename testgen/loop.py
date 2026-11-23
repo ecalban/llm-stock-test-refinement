@@ -21,6 +21,7 @@ import ast
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from unittest import result
 
 from sqlalchemy.util import counter
 
@@ -86,16 +87,16 @@ def should_stop(scores: list[float], max_rounds: int) -> bool:
 def keep_valid(
     test_path: Path, run_tests: Callable[[Path], RunResult] = run_pytest
 ) -> tuple[str, str]:
-    """Run the test file, remove the tests that fail on the ORIGINAL code, rewrite the file.
 
-    Returns (cleaned_code, error). error is the collection error when the file cannot
-    even be imported; in that case the file is left unchanged and cleaned_code is "".
+    results = run_tests(test_path)
 
-    Steps: result = run_tests(test_path) -> if result.collection_error: return "", that
-    -> cleaned = remove_failing_tests(<file text>, result.failed) -> write it -> return.
-    """
-    # TODO(Yusuf)
-    raise NotImplementedError
+    if results.collection_error:
+        return "", results.collection_error
+
+    cleaned = remove_failing_tests(test_path.read_text(), results.failed)
+
+    test_path.write_text(cleaned)
+    return cleaned, ""
 
 
 def _record(round_no: int, generated: int, code: str, report: MutationReport, llm: LLMResult) -> RoundResult:
