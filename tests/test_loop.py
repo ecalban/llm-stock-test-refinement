@@ -39,6 +39,7 @@ def test_count_tests_is_zero_for_broken_code():
         ([0.5, 0.4], 5, True),  # got worse
         ([0.1, 0.2, 0.3], 2, True),  # two feedback rounds done, max is 2
         ([0.1, 0.2, 0.3], 3, False),
+        ([0.5, 0.75], 5, False),  # improved but not finished: go on
     ],
 )
 def test_should_stop(scores, max_rounds, stop):

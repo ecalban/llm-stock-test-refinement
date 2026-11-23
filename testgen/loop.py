@@ -73,7 +73,7 @@ def count_tests(code: str) -> int:
 
 
 def should_stop(scores: list[float], max_rounds: int) -> bool:
-    if scores[-1] >= 0.75:
+    if scores[-1] >= 1.0:
         return True
 
     if len(scores) >= 2 and scores[-1] <= scores[-2]:
@@ -147,19 +147,34 @@ def run_loop(
 
     # --- feedback rounds ------------------------------------------------------------
     while not should_stop([r.score for r in result.rounds], max_rounds):
-        # TODO(Yusuf): one feedback round, 8 steps:
-        # 1. prompt = build_feedback_prompt(source, module_import, code, report, fmt)
-        # 2. llm = client.generate(prompt, system=SYSTEM_PROMPT)
-        # 3. new_tests = extract_code(llm.text)
-        # 4. merged = merge_tests(code, new_tests)
-        #    (if the LLM returned broken Python, merge_tests raises SyntaxError:
-        #     catch it, set result.error = "unparsable reply" and break)
-        # 5. write merged to result.test_path
-        # 6. code, error = keep_valid(result.test_path, run_tests)
-        #    (on error: set result.error and break)
-        # 7. report = mutate(source_path, result.test_path)
-        #    (if report.error: set result.error and break)
-        # 8. append _record(len(result.rounds), count_tests(new_tests), code, report, llm)
-        raise NotImplementedError
+        # 1-3. ask the LLM for more tests
+        prompt = build_feedback_prompt(source, module_import, code, report, fmt)
+        llm = client.generate(prompt, system=SYSTEM_PROMPT)
+        new_tests = extract_code(llm.text)
+
+        # 4. merge; a broken reply ends the loop
+        try:
+            merged = merge_tests(code, new_tests)
+        except SyntaxError:
+            result.error = "unparsable reply"
+            break
+
+        # 5. save the merged file
+        result.test_path.write_text(merged)
+
+        # 6. drop tests that fail on the original code
+        code, error = keep_valid(result.test_path, run_tests)
+        if error:
+            result.error = error
+            break
+
+        # 7. measure
+        report = mutate(source_path, result.test_path)
+        if report.error:
+            result.error = report.error
+            break
+
+        # 8. remember this round
+        result.rounds.append(_record(len(result.rounds), count_tests(new_tests), code, report, llm))
 
     return result
