@@ -41,6 +41,7 @@ def build_prompt(source_code: str, module_import: str) -> str:
         "Every test function should control only one behaviour,it must contain maximum 1-2 asserts.\n"
         "Test functions should tell what it is testing,for example test_sma_returns_none_before_window.\n"
         "If you are not sure about the numbers,don't predict use small inputs that you can calculate with hand.\n"
+        "If a function returns a pandas Series, compare with .tolist() or pd.testing.assert_series_equal.\n"
     )
 
     code_block = f"{fence}python\n{source_code}{fence}\n"
