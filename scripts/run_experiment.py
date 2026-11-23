@@ -56,7 +56,7 @@ def rows_for(
             "round": -1, "tests_generated": 0, "tests_valid": 0,
             "mutants_total": 0, "mutants_survived": 0, "score": 0,
             "prompt_tokens": 0, "completion_tokens": 0, "llm_seconds": 0,
-            "error": 0,
+            "error": result.error,
         }]
 
     rows = []
@@ -68,11 +68,11 @@ def rows_for(
             "tests_valid": r.tests_valid,
             "mutants_total": r.mutants_total,
             "mutants_survived": r.mutants_survived,
-            "score": round(r.score, 2),
+            "score": round(r.score, 4),
             "prompt_tokens": r.prompt_tokens,
             "completion_tokens": r.completion_tokens,
-            "llm_seconds": round(r.llm_seconds, 2),
-            "error": r.error,
+            "llm_seconds": round(r.duration_seconds, 2),
+            "error": result.error,
         })
     return rows
 
@@ -84,7 +84,7 @@ def append_csv(path: Path, rows: list[dict]) -> None:
         writer = csv.DictWriter(f, fieldnames=CSV_COLUMNS)
         if is_new:
             writer.writeheader()
-        writer.writerows()
+        writer.writerows(rows)
 
 
 def main(argv: list[str] | None = None) -> None:
