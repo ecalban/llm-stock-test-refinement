@@ -32,40 +32,59 @@ CSV_COLUMNS = [
 
 
 def module_name(target: Path) -> str:
-    """Turn a file path into its import path: prediction/signals.py -> prediction.signals.
-
-    Hint: target.with_suffix("") drops ".py"; target.parts gives the folder names.
-    Use as_posix() or parts so it also works with Windows backslashes.
-    """
-    # TODO(Yusuf)
-    raise NotImplementedError
+    return ".".join(target.with_suffix("").parts)
 
 
 def rows_for(
     run_id: str, started_at: str, target: Path, provider: str, model: str,
     repeat: int, result: LoopResult,
 ) -> list[dict]:
-    """One dict per round, with exactly the keys in CSV_COLUMNS.
+    common = {
+        "run_id": run_id,
+        "started_at": started_at,
+        "target": target.as_posix(),
+        "provider": provider,
+        "model": model,
+        "fmt": result.fmt,
+        "repeat": repeat,
+    }
 
-    - target is written as a posix path ("prediction/signals.py")
-    - score is rounded to 4 decimals, llm_seconds to 2
-    - error is result.error on EVERY row of the run (so a broken run is easy to filter)
-    - a run that failed before round 0 finished (no rounds) still gets ONE row:
-      round = -1, every number 0, error = result.error
-    """
-    # TODO(Yusuf)
-    raise NotImplementedError
+    # A run that broke before round 0 finished: one row, all numbers 0
+    if not result.rounds:
+        return [{
+            **common,
+            "round": -1, "tests_generated": 0, "tests_valid": 0,
+            "mutants_total": 0, "mutants_survived": 0, "score": 0,
+            "prompt_tokens": 0, "completion_tokens": 0, "llm_seconds": 0,
+            "error": 0,
+        }]
+
+    rows = []
+    for r in result.rounds:
+        rows.append({
+            **common,
+            "round": r.round,
+            "tests_generated": r.tests_generated,
+            "tests_valid": r.tests_valid,
+            "mutants_total": r.mutants_total,
+            "mutants_survived": r.mutants_survived,
+            "score": round(r.score, 2),
+            "prompt_tokens": r.prompt_tokens,
+            "completion_tokens": r.completion_tokens,
+            "llm_seconds": round(r.llm_seconds, 2),
+            "error": r.error,
+        })
+    return rows
 
 
 def append_csv(path: Path, rows: list[dict]) -> None:
-    """Append rows to the CSV at `path`; create the folder and write the header if the
-    file does not exist yet. Never write the header twice.
-
-    Hint: csv.DictWriter(f, fieldnames=CSV_COLUMNS); open with newline="" so Windows
-    does not add blank lines; check path.exists() BEFORE opening the file.
-    """
-    # TODO(Yusuf)
-    raise NotImplementedError
+    is_new = not path.exists()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=CSV_COLUMNS)
+        if is_new:
+            writer.writeheader()
+        writer.writerows()
 
 
 def main(argv: list[str] | None = None) -> None:
