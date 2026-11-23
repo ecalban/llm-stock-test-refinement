@@ -72,17 +72,16 @@ def count_tests(code: str) -> int:
 
 
 def should_stop(scores: list[float], max_rounds: int) -> bool:
-    """Decide after a round whether to stop. `scores` has one entry per finished round,
-    starting with round 0.
+    if scores[-1] >= 0.75:
+        return True
 
-    Stop when ANY of these is true:
-    - every mutant is killed (last score >= 1.0)
-    - the last round did not improve on the round before (needs at least 2 scores)
-    - the number of feedback rounds done (len(scores) - 1) reached max_rounds
-    """
-    # TODO(Yusuf)
-    raise NotImplementedError
+    if len(scores) >= 2 and scores[-1] <= scores[-2]:
+        return True
 
+    if len(scores) - 1 >= max_rounds:
+        return True
+
+    return False
 
 def keep_valid(
     test_path: Path, run_tests: Callable[[Path], RunResult] = run_pytest
