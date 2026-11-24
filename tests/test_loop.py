@@ -169,3 +169,55 @@ def test_loop_stops_on_an_unparsable_reply(tmp_path: Path, source: Path):
 def test_unknown_format_is_rejected(tmp_path: Path, source: Path):
     with pytest.raises(ValueError):
         run_loop(FakeClient(ROUND0), source, "calc", tmp_path / "gen", fmt="everything", mutate=fake_mutate)
+
+
+# --- shared round 0: start_round + continue_loop ------------------------------------
+
+from testgen.loop import continue_loop, start_round  # noqa: E402
+
+
+def test_formats_continue_from_the_same_start(tmp_path: Path, source: Path):
+    client = FakeClient(ROUND0, ROUND1, ROUND1)
+    start = start_round(client, source, "calc", tmp_path / "start", mutate=fake_mutate)
+    start_text = start.test_path.read_text()
+
+    line = continue_loop(client, source, "calc", start, tmp_path / "line", fmt="line",
+                         max_rounds=1, mutate=fake_mutate)
+    full = continue_loop(client, source, "calc", start, tmp_path / "full", fmt="full",
+                         max_rounds=1, mutate=fake_mutate)
+
+    assert line.rounds[0] == full.rounds[0] == start.record  # identical round 0
+    assert [r.score for r in line.rounds] == [0.25, 0.75]
+    assert [r.score for r in full.rounds] == [0.25, 0.75]
+    assert line.test_path == tmp_path / "line" / "test_calc.py"
+    assert full.test_path == tmp_path / "full" / "test_calc.py"
+    assert start.test_path.read_text() == start_text  # the start file was not touched
+    assert len(client.prompts) == 3  # round 0 once + one feedback round per format
+
+
+def test_continue_with_none_makes_no_llm_call(tmp_path: Path, source: Path):
+    client = FakeClient(ROUND0)
+    start = start_round(client, source, "calc", tmp_path / "start", mutate=fake_mutate)
+    result = continue_loop(client, source, "calc", start, tmp_path / "none", fmt="none",
+                           mutate=fake_mutate)
+    assert result.rounds == [start.record]
+    assert result.test_path.read_text() == start.test_path.read_text()
+    assert len(client.prompts) == 1
+
+
+def test_start_error_is_passed_on(tmp_path: Path, source: Path):
+    client = FakeClient(block("def test_broken(:\n    pass\n"))
+    start = start_round(client, source, "calc", tmp_path / "start", mutate=fake_mutate)
+    assert start.error != "" and start.record is None
+    result = continue_loop(client, source, "calc", start, tmp_path / "line", fmt="line",
+                           mutate=fake_mutate)
+    assert result.error == start.error
+    assert result.rounds == []
+    assert len(client.prompts) == 1
+
+
+def test_continue_rejects_unknown_format(tmp_path: Path, source: Path):
+    start = start_round(FakeClient(ROUND0), source, "calc", tmp_path / "start", mutate=fake_mutate)
+    with pytest.raises(ValueError):
+        continue_loop(FakeClient(), source, "calc", start, tmp_path / "x", fmt="everything",
+                      mutate=fake_mutate)

@@ -4,7 +4,10 @@ Usage (from the repository root):
     python -m scripts.run_experiment prediction/signals.py --formats none line --repeats 1 --max-rounds 3
     python -m scripts.run_experiment prediction/indicators.py --provider ollama
 
-Every run gets its own folder under tests/generated/, so earlier runs are kept.
+Each repeat runs round 0 ONCE and continues every format from that same start, so
+formats differ only in their feedback. run_id is "<start>-<fmt>" (e.g. "3f9a1c2e-line"):
+rows with the same prefix share round 0. Every run gets its own folder under
+tests/generated/, so earlier runs are kept.
 Results go to results/experiments.csv (one row per round), which is committed:
 the tables and charts in the report are built from it.
 
@@ -22,7 +25,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from testgen.llm_client import create_client
-from testgen.loop import LoopResult, run_loop
+from testgen.loop import LoopResult, continue_loop, start_round
 
 CSV_COLUMNS = [
     "run_id", "started_at", "target", "provider", "model", "fmt", "repeat",
@@ -88,7 +91,7 @@ def append_csv(path: Path, rows: list[dict]) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
-    """Given. Parses the arguments and runs every (format, repeat) combination."""
+    """Given. Parses the arguments; per repeat: one shared round 0, then every format."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("target", type=Path, help="module under test, e.g. prediction/signals.py")
     parser.add_argument("--formats", nargs="+", default=["none", "score", "line", "full"])
@@ -101,15 +104,20 @@ def main(argv: list[str] | None = None) -> None:
     client = create_client(args.provider)
     model = getattr(client, "model", args.provider)
 
+    module = module_name(args.target)
     for repeat in range(1, args.repeats + 1):
-        for fmt in args.formats:
-            run_id = uuid4().hex[:8]
-            started_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
-            dest = Path("tests/generated") / args.target.stem / f"{fmt}_r{repeat}_{run_id}"
-            print(f"[{run_id}] {args.target} fmt={fmt} repeat={repeat} ...", flush=True)
+        start_id = uuid4().hex[:8]
+        base = Path("tests/generated") / args.target.stem / f"r{repeat}_{start_id}"
+        print(f"[{start_id}] {args.target} repeat={repeat}: round 0 ...", flush=True)
+        start = start_round(client, args.target, module, base / "start")
 
-            result = run_loop(
-                client, args.target, module_name(args.target), dest,
+        for fmt in args.formats:
+            run_id = f"{start_id}-{fmt}"
+            started_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+            print(f"[{run_id}] feedback rounds ...", flush=True)
+
+            result = continue_loop(
+                client, args.target, module, start, base / fmt,
                 fmt=fmt, max_rounds=args.max_rounds,
             )
             rows = rows_for(run_id, started_at, args.target, args.provider, model, repeat, result)
@@ -117,7 +125,6 @@ def main(argv: list[str] | None = None) -> None:
 
             scores = " -> ".join(f"{r.score:.2f}" for r in result.rounds) or "-"
             print(f"[{run_id}] scores: {scores}  {result.error[:80]}", flush=True)
-
 
 if __name__ == "__main__":
     main(sys.argv[1:])
