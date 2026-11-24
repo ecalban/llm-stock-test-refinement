@@ -176,12 +176,26 @@ def continue_loop(
     """
     source = source_path.read_text()
 
-    # TODO(Yusuf): steps 1-5 from the docstring (about 12 lines)
-    raise NotImplementedError
+    if fmt == "none":
+        max_rounds = 0
+    elif fmt not in FORMATS:
+        raise ValueError(fmt)
 
-    # --- feedback rounds (your code, unchanged) ---------------------------------------
+
+    result = LoopResult(fmt=fmt, test_path=dest_dir / start.test_path.name)
+
+    if start.error:
+        result.error = start.error
+        return result
+
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    if result.test_path != start.test_path:
+        shutil.copyfile(start.test_path, result.test_path)
+
+    result.rounds.append(start.record)
+    code, report = start.code, start.report
+
     while not should_stop([r.score for r in result.rounds], max_rounds):
-        # 1-3. ask the LLM for more tests
         prompt = build_feedback_prompt(source, module_import, code, report, fmt)
         llm = client.generate(prompt, system=SYSTEM_PROMPT)
         new_tests = extract_code(llm.text)
