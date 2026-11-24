@@ -7,6 +7,11 @@
 
 max_rounds=0 gives the no-feedback baseline (round 0 only).
 
+Fair comparison of formats: round 0 is noisy (the same prompt can score 0.50 one
+time and 0.72 the next). So an experiment runs round 0 ONCE with start_round() and
+then continues every format from that same starting file with continue_loop().
+Any difference between formats then comes from the feedback alone.
+
 `mutate` and `run_tests` are parameters so tests/test_loop.py can replace the slow
 real tools (mutmut, pytest subprocess) with fast fakes. In real runs leave the
 defaults.
@@ -18,6 +23,7 @@ order: count_tests -> should_stop -> keep_valid -> run_loop.
 from __future__ import annotations
 
 import ast
+import shutil
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -114,40 +120,82 @@ def _record(round_no: int, generated: int, code: str, report: MutationReport, ll
     )
 
 
-def run_loop(
+@dataclass
+class Start:
+    """Round 0, shared by every format of one experiment repeat."""
+
+    test_path: Path  # the cleaned round-0 test file (never modified afterwards)
+    code: str = ""
+    report: MutationReport = field(default_factory=MutationReport)
+    record: RoundResult | None = None
+    error: str = ""
+
+
+def start_round(
     client: LLMClient,
     source_path: Path,
     module_import: str,
+    dest_dir: Path,
+    mutate: Callable[[Path, Path], MutationReport] = run_mutmut,
+    run_tests: Callable[[Path], RunResult] = run_pytest,
+) -> Start:
+    """Round 0: no feedback. Given (this is the old beginning of run_loop)."""
+    first = generate_tests(client, source_path, module_import, dest_dir)
+    code, error = keep_valid(first.test_path, run_tests)
+    if error:
+        return Start(first.test_path, error=error)
+    report = mutate(source_path, first.test_path)
+    if report.error:
+        return Start(first.test_path, error=report.error)
+    record = _record(0, count_tests(first.test_code), code, report, first.llm)
+    return Start(first.test_path, code, report, record)
+
+
+def continue_loop(
+    client: LLMClient,
+    source_path: Path,
+    module_import: str,
+    start: Start,
     dest_dir: Path,
     fmt: str = "none",
     max_rounds: int = 5,
     mutate: Callable[[Path, Path], MutationReport] = run_mutmut,
     run_tests: Callable[[Path], RunResult] = run_pytest,
 ) -> LoopResult:
-    """Run round 0 and then feedback rounds until should_stop says stop."""
+    """Continue from a shared round 0 with feedback format `fmt`.
+
+    1. fmt check: "none" -> max_rounds = 0; unknown fmt -> ValueError (as before)
+    2. result = LoopResult(fmt=fmt, test_path=dest_dir / start.test_path.name)
+    3. if start.error: copy it into result.error and return result (no rounds)
+    4. copy the start file to result.test_path, so every format works on ITS OWN copy
+       and the start file stays untouched:
+           dest_dir.mkdir(parents=True, exist_ok=True)
+           if result.test_path != start.test_path: shutil.copyfile(start.test_path, result.test_path)
+    5. result.rounds.append(start.record); code, report = start.code, start.report
+    The feedback while-loop below is your code from run_loop, moved here unchanged.
+    """
+    source = source_path.read_text()
+
     if fmt == "none":
-        max_rounds = 0  # the baseline never gets feedback
+        max_rounds = 0
     elif fmt not in FORMATS:
         raise ValueError(fmt)
 
-    source = source_path.read_text()
 
-    # --- round 0: no feedback -------------------------------------------------------
-    first = generate_tests(client, source_path, module_import, dest_dir)
-    result = LoopResult(fmt=fmt, test_path=first.test_path)
-    code, error = keep_valid(first.test_path, run_tests)
-    if error:
-        result.error = error
-        return result
-    report = mutate(source_path, first.test_path)
-    if report.error:
-        result.error = report.error
-        return result
-    result.rounds.append(_record(0, count_tests(first.test_code), code, report, first.llm))
+    result = LoopResult(fmt=fmt, test_path=dest_dir / start.test_path.name)
 
-    # --- feedback rounds ------------------------------------------------------------
+    if start.error:
+        result.error = start.error
+        return result
+
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    if result.test_path != start.test_path:
+        shutil.copyfile(start.test_path, result.test_path)
+
+    result.rounds.append(start.record)
+    code, report = start.code, start.report
+
     while not should_stop([r.score for r in result.rounds], max_rounds):
-        # 1-3. ask the LLM for more tests
         prompt = build_feedback_prompt(source, module_import, code, report, fmt)
         llm = client.generate(prompt, system=SYSTEM_PROMPT)
         new_tests = extract_code(llm.text)
@@ -178,3 +226,21 @@ def run_loop(
         result.rounds.append(_record(len(result.rounds), count_tests(new_tests), code, report, llm))
 
     return result
+
+
+def run_loop(
+    client: LLMClient,
+    source_path: Path,
+    module_import: str,
+    dest_dir: Path,
+    fmt: str = "none",
+    max_rounds: int = 5,
+    mutate: Callable[[Path, Path], MutationReport] = run_mutmut,
+    run_tests: Callable[[Path], RunResult] = run_pytest,
+) -> LoopResult:
+    """One format from a fresh round 0. Given: start_round + continue_loop."""
+    if fmt != "none" and fmt not in FORMATS:
+        raise ValueError(fmt)  # fail before spending an LLM call
+    start = start_round(client, source_path, module_import, dest_dir, mutate, run_tests)
+    return continue_loop(client, source_path, module_import, start, dest_dir,
+                         fmt, max_rounds, mutate, run_tests)
