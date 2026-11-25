@@ -1,0 +1,5 @@
+target,fmt,n,start_mean,final_mean,gain_mean,gain_std,rounds_mean,tokens_mean
+prediction/signals.py,none,6,0.611,0.611,0.0,0.0,0.0,1192.5
+prediction/signals.py,score,6,0.611,0.759,0.148,0.148,2.167,3910.5
+prediction/signals.py,line,6,0.611,0.787,0.176,0.164,2.667,5135.167
+prediction/signals.py,full,6,0.611,0.782,0.171,0.127,2.833,9183.0

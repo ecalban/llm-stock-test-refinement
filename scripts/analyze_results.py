@@ -86,7 +86,7 @@ ORDER = ["none", "score", "line", "full"]
 
 def main(argv: list[str] | None = None) -> None:
     """Given."""
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description="Turn results/experiments.csv into tables and charts.")
     parser.add_argument("--csv", type=Path, default=Path("results/experiments.csv"))
     parser.add_argument("--target", default=None)
     parser.add_argument("--out-dir", type=Path, default=Path("results"))
