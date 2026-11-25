@@ -68,18 +68,17 @@ def summary(runs: pd.DataFrame) -> pd.DataFrame:
 
 
 def curves(df: pd.DataFrame, max_round: int) -> pd.DataFrame:
-    """Mean score per round for each fmt: rows = round 0..max_round, columns = fmt.
+    # 1. rows = round, columns = run_id
+    wide = df.pivot(index="round", columns="run_id", values="score")
 
-    A run that stopped early keeps its last score for the remaining rounds
-    (it did not get worse, it just stopped asking). So per run_id: reindex its
-    scores to 0..max_round and forward-fill, then average per fmt.
+    # 2. add missing rounds and carry each run's last score forward
+    wide = wide.reindex(range(max_round + 1)).ffill()
 
-    Hint: df.pivot(index="round", columns="run_id", values="score")
-          .reindex(range(max_round + 1)).ffill()
-          then group the columns by their fmt and take the mean.
-    """
-    # TODO(Yusuf)
-    raise NotImplementedError
+    # 3. which fmt does each run_id belong to?  e.g. {"aaaa-line": "line", ...}
+    fmt_of = df.groupby("run_id")["fmt"].first()
+
+    # 4. average the columns that share a fmt
+    return wide.T.groupby(fmt_of).mean().T
 
 
 ORDER = ["none", "score", "line", "full"]
