@@ -1,21 +1,3 @@
-"""Turn results/experiments.csv into the tables and the chart for the report.
-
-Usage (from the repository root):
-    python -m scripts.analyze_results                      # all targets
-    python -m scripts.analyze_results --target prediction/signals.py
-
-Writes:
-    results/summary.csv      one row per (target, fmt): mean start/final score, gain, cost
-    results/curves_<module>.png   mean mutation score per round, one line per format
-
-Only shared-start runs are used (run_id "<start>-<fmt>"); the first pilot rows
-(before 24 Nov) and runs that broke before round 0 are left out.
-
-tests/test_analyze_results.py describes the helpers. Fill in the TODOs in this
-order: clean -> per_run -> summary -> curves. load() and main() are given.
-pandas practice: groupby, agg, pivot.
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -66,15 +48,23 @@ def per_run(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def summary(runs: pd.DataFrame) -> pd.DataFrame:
-    """One row per (target, fmt), ordered none, score, line, full, with columns:
-    n (number of runs), start_mean, final_mean, gain_mean, gain_std, rounds_mean, tokens_mean.
-    Numbers rounded to 3 decimals; gain_std is 0.0 when there is only one run.
 
-    Hint: runs.groupby(["target", "fmt"]).agg(n=("final_score", "size"), ...)
-    std of a single value is NaN in pandas: .fillna(0.0).
-    """
-    # TODO(Yusuf)
-    raise NotImplementedError
+    table = runs.groupby(["target", "fmt"]).agg(
+        n = ("final_score", "size"),
+        start_mean = ("start_score", "mean"),
+        final_mean = ("final_score", "mean"),
+        gain_mean = ("gain", "mean"),
+        gain_std = ("gain", "std"),
+        rounds_mean = ("rounds", "mean"),
+        tokens_mean = ("tokens", "mean"),
+    ).reset_index()
+
+    table["gain_std"] = table["gain_std"].fillna(0.0)
+
+    table["order"] = table["fmt"].map({fmt: i for i, fmt in enumerate(ORDER)})
+    table = table.sort_values(["target", "order"]).drop(columns="order")
+
+    return table.round(3).reset_index(drop=True)
 
 
 def curves(df: pd.DataFrame, max_round: int) -> pd.DataFrame:
