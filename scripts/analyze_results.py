@@ -31,15 +31,14 @@ def load(path: Path) -> pd.DataFrame:
 
 
 def clean(df: pd.DataFrame) -> pd.DataFrame:
-    """Keep only usable rows:
-    - run_id contains "-" (shared-start runs; the old pilot ids have no "-")
-    - round >= 0 (round -1 means the run broke before round 0)
-    Return a copy with a new column `start_id` = the part of run_id before "-".
+    out = df[(df["run_id"].str.contains("-")) & (df["round"] >= 0)].copy()
 
-    Hints: df[df["run_id"].str.contains("-")]; df["run_id"].str.split("-").str[0]
-    """
-    # TODO(Yusuf)
-    raise NotImplementedError
+    # 1) without expand: each row is a list, .str[0] takes its first element
+    out["start_id"] = out["run_id"].str.split("-").str[0]
+
+    # 2) with expand: a table, take its column 0
+    out["start_id"] = out["run_id"].str.split("-", expand=True)[0]
+    return out
 
 
 def per_run(df: pd.DataFrame) -> pd.DataFrame:
