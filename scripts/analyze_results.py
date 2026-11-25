@@ -42,17 +42,27 @@ def clean(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def per_run(df: pd.DataFrame) -> pd.DataFrame:
-    """One row per run_id with columns:
-    target, fmt, start_id, start_score (round 0), final_score (last round),
-    gain (final - start), rounds (number of FEEDBACK rounds = last round number),
-    tokens (sum of prompt_tokens + completion_tokens over the run's rounds,
-            round 0 counted only for fmt "none" so the shared start is not paid 4 times)
+    # 1. rows of each run in round order, so "first" = round 0 and "last" = final round
+    df = df.sort_values(["run_id", "round"]).copy()
 
-    Hint: sort by round, then groupby("run_id") and take .iloc[0] / .iloc[-1] per group,
-    or use .agg(start_score=("score", "first"), final_score=("score", "last"), ...).
-    """
-    # TODO(Yusuf)
-    raise NotImplementedError
+    # 2. token cost per row; the shared round 0 is paid only by "none"
+    df["cost"] = df["prompt_tokens"] + df["completion_tokens"]
+    df.loc[(df["round"] == 0) & (df["fmt"] != "none"), "cost"] = 0
+
+    # 3. one row per run
+    runs = df.groupby("run_id").agg(
+        target=("target", "first"),
+        fmt=("fmt", "first"),
+        start_id=("start_id", "first"),
+        start_score=("score", "first"),
+        final_score=("score", "last"),
+        rounds=("round", "max"),
+        tokens=("cost", "sum"),
+    ).reset_index()
+
+    # 4. gain = final - start
+    runs["gain"] = runs["final_score"] - runs["start_score"]
+    return runs
 
 
 def summary(runs: pd.DataFrame) -> pd.DataFrame:
